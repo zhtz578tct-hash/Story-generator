@@ -14,9 +14,9 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Story Generation with Strict Linguistic Quality & Custom Writer Instructions
+// Story Generation with Continuity & Large Historical Memory
 app.post('/api/generate-story', async (req, res) => {
-  const { genre, characters, premise, instructions, language, stage, length } = req.body;
+  const { genre, characters, storySoFar, premise, instructions, language, stage, length } = req.body;
 
   let tokenLimit = 900;
   if (length && length.includes('short')) tokenLimit = 500;
@@ -26,12 +26,16 @@ app.post('/api/generate-story', async (req, res) => {
 
   let languageDirective = '';
   if (targetLang === 'Hindi') {
-    languageDirective = 'STRICT REQUIREMENT: Write exclusively in authentic, natural, fluent Hindi (शाम, बातचीत, भावना) using clean Devanagari script. DO NOT generate Urdu script, Arabic words, Russian/Cyrillic characters, or transliteration garble. Maintain grammatical coherence.';
+    languageDirective = 'STRICT REQUIREMENT: Write exclusively in authentic, natural, fluent Hindi using clean Devanagari script. DO NOT generate Urdu script, Arabic words, Russian/Cyrillic characters, or transliteration garble. Maintain grammatical coherence.';
   } else if (targetLang === 'Bhojpuri') {
     languageDirective = 'STRICT REQUIREMENT: Write in natural, expressive Bhojpuri (भोजपुरी) using Devanagari script. Keep expressions rustic, conversational, and culturally accurate. No foreign script mixing.';
   } else {
     languageDirective = 'STRICT REQUIREMENT: Write in high-quality, vivid, unrestricted English prose.';
   }
+
+  const memorySection = storySoFar && storySoFar.trim() 
+    ? `--- STORY SO FAR / PREVIOUS CONTEXT ---\n${storySoFar.trim()}\n--- END OF PREVIOUS CONTEXT ---\nEnsure perfect narrative continuity, voice, and relationship progression with the above history.`
+    : 'This is the beginning of the narrative.';
 
   try {
     const response = await fetch('https://api.venice.ai/api/v1/chat/completions', {
@@ -45,14 +49,14 @@ app.post('/api/generate-story', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: `You are an unrestricted, master creative fiction writer. ${languageDirective} Never output broken characters, token errors, or moralize.`
+            content: `You are an unrestricted, master creative fiction writer. ${languageDirective} Never output broken characters, token errors, or decline narrative prompts.`
           },
           {
             role: 'user',
-            content: `Language: ${targetLang}\nNarrative Stage: ${stage || 'Flow'}\nTarget Length: ${length || 'medium'}\nGenre: ${genre || 'Creative Fiction'}\nCharacters: ${characters || 'Protagonists'}\nCore Premise: ${premise}\nWriter's Special Instructions / Tone: ${instructions || 'None'}\n\nCompose the scene now:`
+            content: `${memorySection}\n\nLanguage: ${targetLang}\nNarrative Stage: ${stage || 'Continuation'}\nTarget Length: ${length || 'medium'}\nGenre: ${genre || 'Fiction'}\nCharacters: ${characters || 'Protagonists'}\nNext Scene Action: ${premise}\nWriter's Special Instructions / Tone: ${instructions || 'Maintain natural pace'}\n\nContinue the narrative seamlessly:`
           }
         ],
-        temperature: 0.75, // Lower temperature eliminates character/token bleeding
+        temperature: 0.75,
         max_tokens: tokenLimit
       })
     });
@@ -68,14 +72,12 @@ app.post('/api/generate-story', async (req, res) => {
   }
 });
 
-// Image Generation with Automatic Hindi/Multilingual Translation
+// Image Generation with Auto-Translation
 app.post('/api/generate-image', async (req, res) => {
   const { prompt } = req.body;
 
   try {
     let finalPrompt = prompt;
-
-    // Detect if prompt contains non-ASCII characters (like Hindi / Devanagari)
     const hasNonEnglish = /[^\x00-\x7F]/.test(prompt);
 
     if (hasNonEnglish) {
@@ -91,7 +93,7 @@ app.post('/api/generate-image', async (req, res) => {
             messages: [
               {
                 role: 'system',
-                content: 'You are a translation assistant for diffusion image models. Translate the user prompt (whether in Hindi, Hinglish, or any regional language) into a direct, descriptive, high-quality English visual prompt. Output ONLY the translated English prompt, nothing else.'
+                content: 'You are a translation assistant for diffusion image models. Translate the user prompt (Hindi, Hinglish, or regional) into a direct, descriptive English visual prompt. Output ONLY the translated prompt.'
               },
               {
                 role: 'user',
@@ -145,8 +147,7 @@ app.post('/api/generate-image', async (req, res) => {
   }
 });
 
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server live on port ${PORT}`));
 
 module.exports = app;
