@@ -21,6 +21,7 @@
     #storyBox { margin-top: 16px; padding: 16px; background: #161e2e; border: 1px solid #1e293b; border-radius: 8px; line-height: 1.7; white-space: pre-wrap; font-size: 1rem; display: none; }
     #imageBox { margin-top: 16px; text-align: center; display: none; }
     #imageBox img { max-width: 100%; border-radius: 8px; border: 1px solid #334155; }
+    .preview-thumb { max-height: 120px; border-radius: 8px; margin-top: 8px; display: none; border: 1px solid #334155; }
   </style>
 </head>
 <body>
@@ -70,7 +71,7 @@
 
   <div class="divider"></div>
 
-  <!-- IMAGE GENERATION SECTION -->
+  <!-- IMAGE GENERATION / IMG2IMG SECTION -->
   <label>Visual Style</label>
   <select id="imageStyle">
     <option value="Cinematic, dramatic lighting, 8k resolution, photorealistic">Cinematic / Realism</option>
@@ -80,14 +81,34 @@
     <option value="Vintage 90s film photograph, grainy, realistic">Vintage Film</option>
   </select>
 
+  <label>Upload Reference Photo (Optional - for Image-to-Image)</label>
+  <input type="file" id="fileInput" accept="image/*" onchange="previewUpload(event)" />
+  <img id="uploadPreview" class="preview-thumb" alt="Uploaded Preview" />
+
   <label>Image Prompt</label>
-  <textarea id="imgPrompt" placeholder="Describe the image in detail (characters, clothing, environment, lighting)..."></textarea>
+  <textarea id="imgPrompt" placeholder="Describe the scene or modifications (e.g., 'Change background to futuristic neon street, cinematic lighting')..."></textarea>
 
   <button class="btn-image" id="imgBtn" onclick="runImage()">Generate Picture</button>
 
   <div id="imageBox"><img id="sceneImg" /></div>
 
   <script>
+    let base64Image = null;
+
+    function previewUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        base64Image = e.target.result; // Full Data URL
+        const thumb = document.getElementById('uploadPreview');
+        thumb.src = base64Image;
+        thumb.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+
     async function runStory() {
       const btn = document.getElementById('storyBtn');
       const box = document.getElementById('storyBox');
@@ -137,7 +158,10 @@
         const res = await fetch('/api/generate-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: fullPrompt })
+          body: JSON.stringify({
+            prompt: fullPrompt,
+            image: base64Image // sends uploaded photo if present
+          })
         });
         const data = await res.json();
         if (data.imageUrl) {
