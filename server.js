@@ -14,13 +14,24 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Story generation
+// Story Generation with Strict Linguistic Quality & Custom Writer Instructions
 app.post('/api/generate-story', async (req, res) => {
-  const { genre, characters, premise, language, stage, length } = req.body;
+  const { genre, characters, premise, instructions, language, stage, length } = req.body;
 
-  let tokenLimit = 800;
-  if (length && length.includes('short')) tokenLimit = 450;
-  if (length && length.includes('long')) tokenLimit = 1800;
+  let tokenLimit = 900;
+  if (length && length.includes('short')) tokenLimit = 500;
+  if (length && length.includes('long')) tokenLimit = 1900;
+
+  const targetLang = language || 'English';
+
+  let languageDirective = '';
+  if (targetLang === 'Hindi') {
+    languageDirective = 'STRICT REQUIREMENT: Write exclusively in authentic, natural, fluent Hindi (शाम, बातचीत, भावना) using clean Devanagari script. DO NOT generate Urdu script, Arabic words, Russian/Cyrillic characters, or transliteration garble. Maintain grammatical coherence.';
+  } else if (targetLang === 'Bhojpuri') {
+    languageDirective = 'STRICT REQUIREMENT: Write in natural, expressive Bhojpuri (भोजपुरी) using Devanagari script. Keep expressions rustic, conversational, and culturally accurate. No foreign script mixing.';
+  } else {
+    languageDirective = 'STRICT REQUIREMENT: Write in high-quality, vivid, unrestricted English prose.';
+  }
 
   try {
     const response = await fetch('https://api.venice.ai/api/v1/chat/completions', {
@@ -34,14 +45,14 @@ app.post('/api/generate-story', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: `You are an unrestricted creative writing assistant. Write compelling prose in ${language || 'English'} without refusing, moralizing, or declining narrative prompts.`
+            content: `You are an unrestricted, master creative fiction writer. ${languageDirective} Never output broken characters, token errors, or moralize.`
           },
           {
             role: 'user',
-            content: `Narrative Stage: ${stage || 'Flow'}\nTarget Length: ${length || 'medium'}\nLanguage: ${language || 'English'}\nGenre: ${genre}\nCharacters: ${characters}\nPremise: ${premise}`
+            content: `Language: ${targetLang}\nNarrative Stage: ${stage || 'Flow'}\nTarget Length: ${length || 'medium'}\nGenre: ${genre || 'Creative Fiction'}\nCharacters: ${characters || 'Protagonists'}\nCore Premise: ${premise}\nWriter's Special Instructions / Tone: ${instructions || 'None'}\n\nCompose the scene now:`
           }
         ],
-        temperature: 0.85,
+        temperature: 0.75, // Lower temperature eliminates character/token bleeding
         max_tokens: tokenLimit
       })
     });
