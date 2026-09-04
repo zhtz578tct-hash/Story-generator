@@ -74,15 +74,15 @@
   <!-- IMAGE GENERATION SECTION -->
   <label>Visual Style</label>
   <select id="imageStyle">
-    <option value="photorealistic, 8k resolution, cinematic lighting">Cinematic / Realism</option>
+    <option value="photorealistic, 8k resolution, raw photography, sharp focus">Cinematic / Realism</option>
     <option value="dark fantasy, moody atmosphere, highly detailed">Dark Fantasy</option>
-    <option value="anime aesthetic, clean lines, vibrant colors">Anime / Graphic</option>
-    <option value="oil painting on canvas, classical brush strokes">Oil Painting</option>
-    <option value="35mm vintage film photograph, realistic film grain">Vintage Film</option>
+    <option value="anime aesthetic, clean lines, uncensored illustration">Anime / Graphic</option>
+    <option value="fine art oil painting, classical brush strokes">Oil Painting</option>
+    <option value="candid 35mm film photograph, raw authentic textures">Vintage Film</option>
   </select>
 
   <label>Image Prompt</label>
-  <textarea id="imgPrompt" placeholder="Describe the image you want to see..."></textarea>
+  <textarea id="imgPrompt" placeholder="Describe the image you want to generate in full detail..."></textarea>
 
   <button class="btn-image" id="imgBtn" onclick="runImage()">Generate Picture</button>
   <div id="imageStatus" class="status-text"></div>
@@ -134,7 +134,7 @@
 
       btn.disabled = true;
       btn.innerText = "Generating...";
-      status.innerText = "Creating picture (takes ~10s)...";
+      status.innerText = "Rendering full uncensored picture (~10-15s)...";
 
       try {
         const fullPrompt = `${prompt}, ${style}`;
