@@ -71,31 +71,30 @@
 
   <div class="divider"></div>
 
-  <!-- IMAGE GENERATION / IMG2IMG SECTION -->
+  <!-- IMAGE GENERATION SECTION -->
   <label>Visual Style</label>
   <select id="imageStyle">
-    <option value="Cinematic, dramatic lighting, 8k resolution, photorealistic">Cinematic / Realism</option>
-    <option value="Dark Fantasy, atmospheric, moody, intricate details">Dark Fantasy</option>
-    <option value="Anime style, highly detailed digital illustration">Anime / Graphic</option>
-    <option value="Classic oil painting, artistic texture, masterpiece">Oil Painting</option>
-    <option value="Vintage 90s film photograph, grainy, realistic">Vintage Film</option>
+    <option value="photorealistic, hyperrealistic, 8k resolution, cinematic lighting">Cinematic / Realism</option>
+    <option value="dark fantasy, moody atmosphere, highly detailed">Dark Fantasy</option>
+    <option value="anime aesthetic, clean lines, vibrant anime color palette">Anime / Graphic</option>
+    <option value="fine art oil painting, textured brush strokes, masterpiece">Oil Painting</option>
+    <option value="vintage 35mm film photograph, raw authentic textures">Vintage Film</option>
   </select>
 
-  <label>Upload Reference Photo (Optional - for Image-to-Image)</label>
+  <label>Upload Reference Photo (Optional - for Image Transformation)</label>
   <input type="file" id="fileInput" accept="image/*" onchange="processAndCompress(event)" />
   <img id="uploadPreview" class="preview-thumb" alt="Uploaded Preview" />
 
   <label>Image Prompt</label>
-  <textarea id="imgPrompt" placeholder="Describe what you want to generate or modify..."></textarea>
+  <textarea id="imgPrompt" placeholder="Describe the scene or modifications..."></textarea>
 
   <button class="btn-image" id="imgBtn" onclick="runImage()">Generate Picture</button>
 
   <div id="imageBox"><img id="sceneImg" /></div>
 
-    <script>
-    let fullDataUrl = null;
+  <script>
+    let pureBase64 = null;
 
-    // Resizes photo and preserves proper Data URL format for Venice
     function processAndCompress(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -105,26 +104,28 @@
         const img = new Image();
         img.onload = function() {
           const canvas = document.createElement('canvas');
-          const targetDim = 1024;
+          const maxDim = 1024;
           let width = img.width;
           let height = img.height;
 
           if (width > height) {
-            height = Math.round((height * targetDim) / width);
-            width = targetDim;
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
           } else {
-            width = Math.round((width * targetDim) / height);
-            height = targetDim;
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
           }
 
-          // Dimensions must be multiples of 64
+          // Exact 64-pixel stepping for SDXL compatibility
           canvas.width = Math.floor(width / 64) * 64;
           canvas.height = Math.floor(height / 64) * 64;
 
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-          fullDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          const fullDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          // Strip prefix entirely so only clean base64 payload is passed
+          pureBase64 = fullDataUrl.split(',')[1];
 
           const thumb = document.getElementById('uploadPreview');
           thumb.src = fullDataUrl;
@@ -183,17 +184,20 @@
         const keyRes = await fetch('/api/config');
         const { key } = await keyRes.json();
 
+        // Base payload acceptable by Venice SDXL
         const payload = {
           model: 'lustify-sdxl',
           prompt: `${prompt}, ${style}`,
           width: 1024,
           height: 1024,
+          steps: 30,
           cfg_scale: 7
         };
 
-        if (fullDataUrl) {
-          payload.image = fullDataUrl;
-          payload.strength = 0.6;
+        // Attach image parameters for img2img transformation
+        if (pureBase64) {
+          payload.image = pureBase64;
+          payload.strength = 50; // Venice expects 0-100 or integer scale for img2img strength
         }
 
         const response = await fetch('https://api.venice.ai/api/v1/image/generate', {
@@ -213,11 +217,12 @@
           img.src = result;
           box.style.display = 'block';
         } else {
+          // Extracts precise parameter rejection from Venice API error body
           const errDetail = data.error?.message || data.error || JSON.stringify(data);
           alert("Venice Error: " + errDetail);
         }
       } catch (e) {
-        alert("Network or generation issue. Please try again.");
+        alert("Connection issue. Please try again.");
       }
       btn.innerText = "Generate Picture";
       btn.disabled = false;
