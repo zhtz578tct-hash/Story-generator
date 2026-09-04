@@ -6,10 +6,11 @@
   <title>Story Studio</title>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: -apple-system, sans-serif; background: #0b0f19; color: #f1f5f9; margin: 0; padding: 18px; }
-    h1 { font-size: 1.3rem; color: #38bdf8; margin-bottom: 4px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b0f19; color: #f1f5f9; margin: 0; padding: 18px; padding-bottom: 40px; }
+    h1 { font-size: 1.4rem; color: #38bdf8; margin-bottom: 4px; }
     p.sub { font-size: 0.8rem; color: #94a3b8; margin-top: 0; margin-bottom: 16px; }
-    label { display: block; font-size: 0.85rem; font-weight: 600; margin-top: 12px; margin-bottom: 4px; }
+    label { display: block; font-size: 0.82rem; font-weight: 600; margin-top: 12px; margin-bottom: 5px; color: #cbd5e1; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     select, input, textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #1e293b; background: #161e2e; color: #fff; font-size: 0.95rem; }
     textarea { height: 100px; resize: vertical; }
     .btn-row { display: flex; gap: 10px; margin-top: 16px; }
@@ -17,7 +18,7 @@
     .btn-story { background: #2563eb; color: #fff; }
     .btn-image { background: #7c3aed; color: #fff; }
     button:disabled { opacity: 0.6; }
-    #storyBox { margin-top: 20px; padding: 16px; background: #161e2e; border: 1px solid #1e293b; border-radius: 8px; line-height: 1.6; white-space: pre-wrap; display: none; }
+    #storyBox { margin-top: 20px; padding: 16px; background: #161e2e; border: 1px solid #1e293b; border-radius: 8px; line-height: 1.7; white-space: pre-wrap; font-size: 1rem; display: none; }
     #imageBox { margin-top: 20px; text-align: center; display: none; }
     #imageBox img { max-width: 100%; border-radius: 8px; border: 1px solid #334155; }
   </style>
@@ -33,14 +34,35 @@
     <option value="Bhojpuri">Bhojpuri (भोजपुरी)</option>
   </select>
 
+  <div class="grid-2">
+    <div>
+      <label>Story Stage</label>
+      <select id="stage">
+        <option value="Opening / Hook">Story Opening (Hook)</option>
+        <option value="Middle / Plot Development">Story Flow (Development)</option>
+        <option value="Climax">Dramatic Climax</option>
+        <option value="Ending / Resolution">Story Ending (Resolution)</option>
+        <option value="Complete Short Story">Full Standalone Story</option>
+      </select>
+    </div>
+    <div>
+      <label>Story Length</label>
+      <select id="length">
+        <option value="short (around 200 words)">Short (~200 words)</option>
+        <option value="medium (around 500 words)" selected>Medium (~500 words)</option>
+        <option value="long and detailed (around 900+ words)">Long (~900+ words)</option>
+      </select>
+    </div>
+  </div>
+
   <label>Genre / Tone</label>
   <input id="genre" placeholder="e.g. Action Thriller, Romance, Rural Drama" />
 
   <label>Characters</label>
   <input id="characters" placeholder="e.g. Ramesh, Priya" />
 
-  <label>Premise / Scene</label>
-  <textarea id="premise" placeholder="What is happening right now?"></textarea>
+  <label>Premise / Scene Focus</label>
+  <textarea id="premise" placeholder="What is happening right now? Describe the situation..."></textarea>
 
   <div class="btn-row">
     <button class="btn-story" id="storyBtn" onclick="runStory()">Write Scene</button>
@@ -63,6 +85,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             language: document.getElementById('language').value,
+            stage: document.getElementById('stage').value,
+            length: document.getElementById('length').value,
             genre: document.getElementById('genre').value,
             characters: document.getElementById('characters').value,
             premise: document.getElementById('premise').value
@@ -106,7 +130,7 @@
           alert("Image error: " + (data.error || "Unknown"));
         }
       } catch (e) {
-        alert("Image generation failed");
+        alert("Image failed");
       }
       btn.innerText = "Illustrate";
       btn.disabled = false;
