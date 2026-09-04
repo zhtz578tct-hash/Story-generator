@@ -57,14 +57,13 @@ app.post('/api/generate-story', async (req, res) => {
   }
 });
 
-// Image Generation & Reference Photo Transformation
+// Image Generation & Identity-Focused Transformation
 app.post('/api/generate-image', async (req, res) => {
   const { prompt, image } = req.body;
 
   try {
     let finalPrompt = prompt;
 
-    // If an image was uploaded, analyze its visual elements to craft a matching prompt
     if (image) {
       try {
         const visionRes = await fetch('https://api.venice.ai/api/v1/chat/completions', {
@@ -81,7 +80,7 @@ app.post('/api/generate-image', async (req, res) => {
                 content: [
                   {
                     type: 'text',
-                    text: `Analyze this image in detail. Extract the subject's gender, ethnicity, clothing, colors, hairstyle, and general appearance. Then describe how this person would look if they are: "${prompt}". Return only a dense descriptive visual prompt suitable for Stable Diffusion.`
+                    text: `Identify the EXACT subject in this image (age group, child/adult, gender, exact ethnicity, hair style/color, skin tone, and current clothes). Then rewrite this instruction: "${prompt}" into a detailed realistic photo prompt preserving the EXACT same person, age, and appearance. Do NOT change child to adult or alter gender. Output ONLY the descriptive prompt.`
                   },
                   {
                     type: 'image_url',
@@ -101,18 +100,16 @@ app.post('/api/generate-image', async (req, res) => {
           finalPrompt = visionData.choices[0].message.content.trim();
         }
       } catch (visionErr) {
-        // Fallback to user prompt if vision model is busy
         finalPrompt = prompt;
       }
     }
 
-    // Clean image generation payload strictly accepted by Venice
     const payload = {
-      model: 'lustify-sdxl',
+      model: 'default',
       prompt: finalPrompt,
       width: 1024,
       height: 1024,
-      cfg_scale: 7.5,
+      cfg_scale: 7.0,
       safe_mode: false,
       hide_watermark: true
     };
