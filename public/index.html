@@ -13,10 +13,12 @@
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     select, input, textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #1e293b; background: #161e2e; color: #fff; font-size: 0.95rem; }
     textarea { height: 85px; resize: vertical; }
+    textarea.tall { height: 140px; }
     .btn-row { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-top: 10px; }
     button { padding: 14px; border: none; border-radius: 8px; font-weight: 600; font-size: 0.95rem; cursor: pointer; }
     .btn-story { background: #2563eb; color: #fff; width: 100%; }
     .btn-clear { background: #334155; color: #f1f5f9; font-size: 0.85rem; }
+    .btn-append { background: #0284c7; color: #fff; width: 100%; margin-top: 10px; font-size: 0.85rem; padding: 10px; }
     .btn-image { background: #7c3aed; color: #fff; width: 100%; margin-top: 10px; }
     button:disabled { opacity: 0.6; }
     .divider { margin: 24px 0 16px; border-top: 1px solid #1e293b; }
@@ -43,7 +45,7 @@
       <label>Story Stage</label>
       <select id="stage">
         <option value="Opening / Hook">Opening (Hook)</option>
-        <option value="Middle / Plot Development">Story Flow</option>
+        <option value="Middle / Plot Development" selected>Story Flow / Continuation</option>
         <option value="Climax">Dramatic Climax</option>
         <option value="Ending / Resolution">Resolution</option>
         <option value="Complete Short Story">Full Story</option>
@@ -65,11 +67,14 @@
   <label>Characters</label>
   <input id="characters" placeholder="e.g. Ramesh, Priya" />
 
-  <label>Premise / Scene Focus</label>
-  <textarea id="premise" placeholder="What happens in this story scene?"></textarea>
+  <label>Story So Far / Previous Chapters (No limit — paste past text here for continuity)</label>
+  <textarea id="storySoFar" class="tall" placeholder="Paste the previous chapters or story context here so the model maintains the exact plot flow, background events, and tone..."></textarea>
+
+  <label>Next Scene Focus / Immediate Premise</label>
+  <textarea id="premise" placeholder="What happens next in this specific upcoming scene?"></textarea>
 
   <label>Writer's Additional Instructions (Tone, Dialogue style, Twist, Constraints)</label>
-  <textarea id="instructions" placeholder="e.g., Focus more on intimate dialogue, maintain rustic vocabulary, add suspense..."></textarea>
+  <textarea id="instructions" placeholder="e.g. Keep dialogue natural, slow romantic buildup, introduce mystery..."></textarea>
 
   <div class="btn-row">
     <button class="btn-story" id="storyBtn" onclick="runStory()">Write Story</button>
@@ -77,6 +82,7 @@
   </div>
 
   <div id="storyBox"></div>
+  <button id="appendBtn" class="btn-append" type="button" onclick="appendToStorySoFar()" style="display:none;">Add Generated Scene to Story So Far</button>
 
   <div class="divider"></div>
 
@@ -90,7 +96,7 @@
     <option value="candid 35mm film photograph, raw authentic textures">Vintage Film</option>
   </select>
 
-  <label>Image Prompt</label>
+  <label>Image Prompt (English or Hindi)</label>
   <textarea id="imgPrompt" placeholder="Describe the scene or characters to illustrate..."></textarea>
 
   <div class="btn-row">
@@ -102,14 +108,28 @@
   <div id="imageBox"><img id="sceneImg" /></div>
 
   <script>
+    let lastGeneratedStory = '';
+
+    function appendToStorySoFar() {
+      const soFar = document.getElementById('storySoFar');
+      if (lastGeneratedStory) {
+        soFar.value = soFar.value ? `${soFar.value}\n\n${lastGeneratedStory}` : lastGeneratedStory;
+        document.getElementById('premise').value = '';
+        alert('Appended to Story So Far! You can now enter the next scene.');
+      }
+    }
+
     function clearStorySection() {
       document.getElementById('genre').value = '';
       document.getElementById('characters').value = '';
+      document.getElementById('storySoFar').value = '';
       document.getElementById('premise').value = '';
       document.getElementById('instructions').value = '';
       const box = document.getElementById('storyBox');
       box.innerText = '';
       box.style.display = 'none';
+      document.getElementById('appendBtn').style.display = 'none';
+      lastGeneratedStory = '';
     }
 
     function clearImageSection() {
@@ -124,6 +144,7 @@
     async function runStory() {
       const btn = document.getElementById('storyBtn');
       const box = document.getElementById('storyBox');
+      const appendBtn = document.getElementById('appendBtn');
       btn.innerText = "Writing...";
       btn.disabled = true;
 
@@ -137,13 +158,21 @@
             length: document.getElementById('length').value,
             genre: document.getElementById('genre').value,
             characters: document.getElementById('characters').value,
+            storySoFar: document.getElementById('storySoFar').value,
             premise: document.getElementById('premise').value,
             instructions: document.getElementById('instructions').value
           })
         });
         const data = await res.json();
-        box.style.display = 'block';
-        box.innerText = data.story || ("Error: " + (data.error || "Server issue"));
+        if (data.story) {
+          lastGeneratedStory = data.story;
+          box.style.display = 'block';
+          box.innerText = data.story;
+          appendBtn.style.display = 'block';
+        } else {
+          box.style.display = 'block';
+          box.innerText = "Error: " + (data.error || "Server issue");
+        }
       } catch (e) {
         alert("Story generation error: " + e.message);
       }
@@ -166,7 +195,7 @@
 
       btn.disabled = true;
       btn.innerText = "Generating...";
-      status.innerText = "Rendering uncensored picture (~10-15s)...";
+      status.innerText = "Rendering picture (~10-15s)...";
 
       try {
         const fullPrompt = `${prompt}, ${style}`;
