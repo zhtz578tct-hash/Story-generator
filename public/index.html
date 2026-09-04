@@ -21,7 +21,7 @@
     #storyBox { margin-top: 16px; padding: 16px; background: #161e2e; border: 1px solid #1e293b; border-radius: 8px; line-height: 1.7; white-space: pre-wrap; font-size: 1rem; display: none; }
     #imageBox { margin-top: 16px; text-align: center; display: none; }
     #imageBox img { max-width: 100%; border-radius: 8px; border: 1px solid #334155; }
-    .preview-thumb { max-height: 120px; border-radius: 8px; margin-top: 8px; display: none; border: 1px solid #334155; }
+    .preview-thumb { max-height: 140px; border-radius: 8px; margin-top: 8px; display: none; border: 1px solid #334155; }
   </style>
 </head>
 <body>
@@ -82,29 +82,58 @@
   </select>
 
   <label>Upload Reference Photo (Optional - for Image-to-Image)</label>
-  <input type="file" id="fileInput" accept="image/*" onchange="previewUpload(event)" />
+  <input type="file" id="fileInput" accept="image/*" onchange="processAndCompress(event)" />
   <img id="uploadPreview" class="preview-thumb" alt="Uploaded Preview" />
 
   <label>Image Prompt</label>
-  <textarea id="imgPrompt" placeholder="Describe the scene or modifications (e.g., 'Change background to futuristic neon street, cinematic lighting')..."></textarea>
+  <textarea id="imgPrompt" placeholder="Describe the modifications or prompt..."></textarea>
 
   <button class="btn-image" id="imgBtn" onclick="runImage()">Generate Picture</button>
 
   <div id="imageBox"><img id="sceneImg" /></div>
 
   <script>
-    let base64Image = null;
+    let compressedBase64 = null;
 
-    function previewUpload(event) {
+    // Resizes iPhone camera shots automatically so Vercel does not reject them
+    function processAndCompress(event) {
       const file = event.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
       reader.onload = function(e) {
-        base64Image = e.target.result; // Full Data URL
-        const thumb = document.getElementById('uploadPreview');
-        thumb.src = base64Image;
-        thumb.style.display = 'block';
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const maxDim = 1024;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxDim) {
+              height *= maxDim / width;
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width *= maxDim / height;
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Export as optimized JPEG
+          compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+
+          const thumb = document.getElementById('uploadPreview');
+          thumb.src = compressedBase64;
+          thumb.style.display = 'block';
+        };
+        img.src = e.target.result;
       };
       reader.readAsDataURL(file);
     }
@@ -160,7 +189,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prompt: fullPrompt,
-            image: base64Image // sends uploaded photo if present
+            image: compressedBase64
           })
         });
         const data = await res.json();
@@ -168,10 +197,10 @@
           img.src = data.imageUrl;
           box.style.display = 'block';
         } else {
-          alert("Image error: " + (data.error || "Unknown"));
+          alert("Image error: " + (data.error || JSON.stringify(data)));
         }
       } catch (e) {
-        alert("Image failed");
+        alert("Connection failed. Try a slightly shorter prompt.");
       }
       btn.innerText = "Generate Picture";
       btn.disabled = false;
