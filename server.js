@@ -13,12 +13,10 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Provides the key directly so browser bypasses Vercel 10s serverless timeout
 app.get('/api/config', (req, res) => {
   res.json({ key: VENICE_KEY });
 });
 
-// Story Generation
 app.post('/api/generate-story', async (req, res) => {
   const { genre, characters, premise, language, stage, length } = req.body;
 
