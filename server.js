@@ -68,59 +68,56 @@ app.post('/api/generate-story', async (req, res) => {
   }
 });
 
-// Image Generation & Identity-Focused Transformation
+// Image Generation with Automatic Hindi/Multilingual Translation
 app.post('/api/generate-image', async (req, res) => {
-  const { prompt, image } = req.body;
+  const { prompt } = req.body;
 
   try {
     let finalPrompt = prompt;
 
-    if (image) {
+    // Detect if prompt contains non-ASCII characters (like Hindi / Devanagari)
+    const hasNonEnglish = /[^\x00-\x7F]/.test(prompt);
+
+    if (hasNonEnglish) {
       try {
-        const visionRes = await fetch('https://api.venice.ai/api/v1/chat/completions', {
+        const transRes = await fetch('https://api.venice.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${VENICE_KEY}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            model: 'qwen-2.5-vl',
+            model: 'venice-uncensored',
             messages: [
               {
+                role: 'system',
+                content: 'You are a translation assistant for diffusion image models. Translate the user prompt (whether in Hindi, Hinglish, or any regional language) into a direct, descriptive, high-quality English visual prompt. Output ONLY the translated English prompt, nothing else.'
+              },
+              {
                 role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: `Identify the EXACT subject in this image (age group, child/adult, gender, exact ethnicity, hair style/color, skin tone, and current clothes). Then rewrite this instruction: "${prompt}" into a detailed realistic photo prompt preserving the EXACT same person, age, and appearance. Do NOT change child to adult or alter gender. Output ONLY the descriptive prompt.`
-                  },
-                  {
-                    type: 'image_url',
-                    image_url: {
-                      url: image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}`
-                    }
-                  }
-                ]
+                content: prompt
               }
             ],
-            max_tokens: 300
+            temperature: 0.3,
+            max_tokens: 150
           })
         });
 
-        const visionData = await visionRes.json();
-        if (visionData.choices && visionData.choices[0]?.message?.content) {
-          finalPrompt = visionData.choices[0].message.content.trim();
+        const transData = await transRes.json();
+        if (transData.choices && transData.choices[0]?.message?.content) {
+          finalPrompt = transData.choices[0].message.content.trim();
         }
-      } catch (visionErr) {
+      } catch (transErr) {
         finalPrompt = prompt;
       }
     }
 
     const payload = {
-      model: 'default',
+      model: 'lustify-sdxl',
       prompt: finalPrompt,
       width: 1024,
       height: 1024,
-      cfg_scale: 7.0,
+      cfg_scale: 7.5,
       safe_mode: false,
       hide_watermark: true
     };
@@ -147,6 +144,7 @@ app.post('/api/generate-image', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
