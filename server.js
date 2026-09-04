@@ -4,8 +4,8 @@ const path = require('path');
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '15mb' }));
-app.use(express.urlencoded({ extended: true, limit: '15mb' }));
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const VENICE_KEY = process.env.VENICE_API_KEY;
@@ -14,7 +14,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Story Generation
+// Story Generation Endpoint
 app.post('/api/generate-story', async (req, res) => {
   const { genre, characters, premise, language, stage, length } = req.body;
 
@@ -57,11 +57,12 @@ app.post('/api/generate-story', async (req, res) => {
   }
 });
 
-// Uncensored Image Generation (Safe Mode Disabled)
+// Uncensored Image & Img2Img Generation
 app.post('/api/generate-image', async (req, res) => {
-  const { prompt } = req.body;
+  const { prompt, image } = req.body;
 
   try {
+    // Base payload with uncensored / unblurred output
     const payload = {
       model: 'lustify-sdxl',
       prompt: prompt,
@@ -71,6 +72,13 @@ app.post('/api/generate-image', async (req, res) => {
       safe_mode: false,
       hide_watermark: true
     };
+
+    // If a photo is attached, include Venice transformation parameters
+    if (image) {
+      // Venice expects clean raw base64 string
+      const cleanBase64 = image.includes(',') ? image.split(',')[1] : image;
+      payload.image = cleanBase64;
+    }
 
     const response = await fetch('https://api.venice.ai/api/v1/image/generate', {
       method: 'POST',
