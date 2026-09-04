@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Story Studio</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, sans-serif; background: #0b0f19; color: #f1f5f9; margin: 0; padding: 18px; }
+    h1 { font-size: 1.3rem; color: #38bdf8; margin-bottom: 4px; }
+    p.sub { font-size: 0.8rem; color: #94a3b8; margin-top: 0; margin-bottom: 16px; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; margin-top: 12px; margin-bottom: 4px; }
+    select, input, textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #1e293b; background: #161e2e; color: #fff; font-size: 0.95rem; }
+    textarea { height: 100px; resize: vertical; }
+    .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    button { flex: 1; padding: 14px; border: none; border-radius: 8px; font-weight: 600; font-size: 0.95rem; cursor: pointer; }
+    .btn-story { background: #2563eb; color: #fff; }
+    .btn-image { background: #7c3aed; color: #fff; }
+    button:disabled { opacity: 0.6; }
+    #storyBox { margin-top: 20px; padding: 16px; background: #161e2e; border: 1px solid #1e293b; border-radius: 8px; line-height: 1.6; white-space: pre-wrap; display: none; }
+    #imageBox { margin-top: 20px; text-align: center; display: none; }
+    #imageBox img { max-width: 100%; border-radius: 8px; border: 1px solid #334155; }
+  </style>
+</head>
+<body>
+  <h1>Story Studio</h1>
+  <p class="sub">Uncensored narrative and scene generation</p>
+
+  <label>Language</label>
+  <select id="language">
+    <option value="English">English</option>
+    <option value="Hindi">Hindi (हिंदी)</option>
+    <option value="Bhojpuri">Bhojpuri (भोजपुरी)</option>
+  </select>
+
+  <label>Genre / Tone</label>
+  <input id="genre" placeholder="e.g. Action Thriller, Romance, Rural Drama" />
+
+  <label>Characters</label>
+  <input id="characters" placeholder="e.g. Ramesh, Priya" />
+
+  <label>Premise / Scene</label>
+  <textarea id="premise" placeholder="What is happening right now?"></textarea>
+
+  <div class="btn-row">
+    <button class="btn-story" id="storyBtn" onclick="runStory()">Write Scene</button>
+    <button class="btn-image" id="imgBtn" onclick="runImage()">Illustrate</button>
+  </div>
+
+  <div id="imageBox"><img id="sceneImg" /></div>
+  <div id="storyBox"></div>
+
+  <script>
+    async function runStory() {
+      const btn = document.getElementById('storyBtn');
+      const box = document.getElementById('storyBox');
+      btn.innerText = "Writing...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/generate-story', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            language: document.getElementById('language').value,
+            genre: document.getElementById('genre').value,
+            characters: document.getElementById('characters').value,
+            premise: document.getElementById('premise').value
+          })
+        });
+        const data = await res.json();
+        box.style.display = 'block';
+        box.innerText = data.story || ("Error: " + data.error);
+      } catch (e) {
+        alert("Server request failed");
+      }
+      btn.innerText = "Write Scene";
+      btn.disabled = false;
+    }
+
+    async function runImage() {
+      const btn = document.getElementById('imgBtn');
+      const box = document.getElementById('imageBox');
+      const img = document.getElementById('sceneImg');
+      const premise = document.getElementById('premise').value;
+
+      if (!premise.trim()) {
+        alert("Enter scene details first.");
+        return;
+      }
+
+      btn.innerText = "Painting...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/generate-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: premise })
+        });
+        const data = await res.json();
+        if (data.imageUrl) {
+          img.src = data.imageUrl;
+          box.style.display = 'block';
+        } else {
+          alert("Image error: " + (data.error || "Unknown"));
+        }
+      } catch (e) {
+        alert("Image generation failed");
+      }
+      btn.innerText = "Illustrate";
+      btn.disabled = false;
+    }
+  </script>
+</body>
+</html>
