@@ -1,14 +1,22 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+
+// Serve static assets from the public folder
+app.use(express.static(path.join(__dirname, 'public')));
 
 const VENICE_KEY = process.env.VENICE_API_KEY;
 
-// 1. Text Generation (Uncensored Story)
+// Explicitly send index.html when visiting the root '/'
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// 1. Uncensored Story Generation
 app.post('/api/generate-story', async (req, res) => {
   const { genre, characters, premise, language } = req.body;
 
@@ -46,7 +54,7 @@ app.post('/api/generate-story', async (req, res) => {
   }
 });
 
-// 2. Image Generation (Uncensored Diffusion)
+// 2. Uncensored Image Generation
 app.post('/api/generate-image', async (req, res) => {
   const { prompt } = req.body;
 
@@ -81,4 +89,6 @@ app.post('/api/generate-image', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server live on port ${PORT}`));
+
+module.exports = app;
