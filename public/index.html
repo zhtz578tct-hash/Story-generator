@@ -146,28 +146,42 @@
       btn.innerText = "Writing...";
       btn.disabled = true;
 
-      try {
-        const res = await fetch('/api/generate-story', {
+            try {
+        const keyRes = await fetch('/api/config');
+        const { key } = await keyRes.json();
+
+        const payload = {
+          model: 'lustify-sdxl',
+          prompt: `${prompt}, ${style}`,
+          width: 1024,
+          height: 1024,
+          cfg_scale: 7
+        };
+
+        const response = await fetch('https://api.venice.ai/api/v1/image/generate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            language: document.getElementById('language').value,
-            stage: document.getElementById('stage').value,
-            length: document.getElementById('length').value,
-            genre: document.getElementById('genre').value,
-            characters: document.getElementById('characters').value,
-            premise: document.getElementById('premise').value
-          })
+          headers: {
+            'Authorization': `Bearer ${key}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
         });
-        const data = await res.json();
-        box.style.display = 'block';
-        box.innerText = data.story || ("Error: " + (data.error || "Server issue"));
+
+        const data = await response.json();
+        if (data.images && data.images[0]) {
+          const result = data.images[0].startsWith('http')
+            ? data.images[0]
+            : `data:image/webp;base64,${data.images[0]}`;
+          img.src = result;
+          box.style.display = 'block';
+        } else {
+          alert("Venice Error: " + (data.error?.message || data.error || JSON.stringify(data)));
+        }
       } catch (e) {
-        alert("Story generation error");
+        alert("Connection issue. Please try again.");
       }
-      btn.innerText = "Write Story Scene";
+      btn.innerText = "Generate Picture";
       btn.disabled = false;
-    }
 
     async function runImage() {
       const btn = document.getElementById('imgBtn');
