@@ -16,11 +16,14 @@
     button { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: 600; font-size: 0.95rem; cursor: pointer; margin-top: 10px; }
     .btn-story { background: #2563eb; color: #fff; }
     .btn-image { background: #7c3aed; color: #fff; }
+    .btn-clear { background: #334155; color: #cbd5e1; padding: 8px; font-size: 0.8rem; margin-top: 5px; border-radius: 6px; border: none; cursor: pointer; width: auto; }
     button:disabled { opacity: 0.6; }
     .divider { margin: 24px 0 16px; border-top: 1px solid #1e293b; }
     #storyBox { margin-top: 16px; padding: 16px; background: #161e2e; border: 1px solid #1e293b; border-radius: 8px; line-height: 1.7; white-space: pre-wrap; font-size: 1rem; display: none; }
     #imageBox { margin-top: 16px; text-align: center; display: none; }
     #imageBox img { max-width: 100%; border-radius: 8px; border: 1px solid #334155; }
+    .preview-container { margin-top: 8px; display: none; }
+    .preview-thumb { max-height: 140px; border-radius: 8px; border: 1px solid #334155; display: block; margin-bottom: 6px; }
     .status-text { font-size: 0.85rem; color: #38bdf8; margin-top: 8px; text-align: center; }
   </style>
 </head>
@@ -71,7 +74,7 @@
 
   <div class="divider"></div>
 
-  <!-- IMAGE GENERATION SECTION -->
+  <!-- IMAGE & IMG2IMG SECTION -->
   <label>Visual Style</label>
   <select id="imageStyle">
     <option value="photorealistic, 8k resolution, raw photography, sharp focus">Cinematic / Realism</option>
@@ -81,8 +84,16 @@
     <option value="candid 35mm film photograph, raw authentic textures">Vintage Film</option>
   </select>
 
+  <label>Upload Reference Photo (Optional - for Image-to-Image)</label>
+  <input type="file" id="fileInput" accept="image/*" onchange="handleImage(event)" />
+  
+  <div id="previewWrap" class="preview-container">
+    <img id="uploadPreview" class="preview-thumb" alt="Uploaded Reference" />
+    <button class="btn-clear" type="button" onclick="clearUploadedImage()">Remove Photo</button>
+  </div>
+
   <label>Image Prompt</label>
-  <textarea id="imgPrompt" placeholder="Describe the image you want to generate in full detail..."></textarea>
+  <textarea id="imgPrompt" placeholder="Describe the scene or modifications in full detail..."></textarea>
 
   <button class="btn-image" id="imgBtn" onclick="runImage()">Generate Picture</button>
   <div id="imageStatus" class="status-text"></div>
@@ -90,6 +101,57 @@
   <div id="imageBox"><img id="sceneImg" /></div>
 
   <script>
+    let uploadedImageBase64 = null;
+
+    function handleImage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1024;
+
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          canvas.width = Math.floor(width / 64) * 64;
+          canvas.height = Math.floor(height / 64) * 64;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          uploadedImageBase64 = dataUrl;
+
+          document.getElementById('uploadPreview').src = dataUrl;
+          document.getElementById('previewWrap').style.display = 'block';
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearUploadedImage() {
+      uploadedImageBase64 = null;
+      document.getElementById('fileInput').value = '';
+      document.getElementById('uploadPreview').src = '';
+      document.getElementById('previewWrap').style.display = 'none';
+    }
+
     async function runStory() {
       const btn = document.getElementById('storyBtn');
       const box = document.getElementById('storyBox');
@@ -128,20 +190,25 @@
       const style = document.getElementById('imageStyle').value;
 
       if (!prompt.trim()) {
-        alert("Please enter a prompt in the Image Prompt box.");
+        alert("Please enter a description in the Image Prompt box.");
         return;
       }
 
       btn.disabled = true;
       btn.innerText = "Generating...";
-      status.innerText = "Rendering full uncensored picture (~10-15s)...";
+      status.innerText = uploadedImageBase64 
+        ? "Transforming uploaded image (~12-18s)..." 
+        : "Rendering uncensored picture (~10-15s)...";
 
       try {
         const fullPrompt = `${prompt}, ${style}`;
         const res = await fetch('/api/generate-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: fullPrompt })
+          body: JSON.stringify({
+            prompt: fullPrompt,
+            image: uploadedImageBase64
+          })
         });
 
         const data = await res.json();
