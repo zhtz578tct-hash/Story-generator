@@ -5,20 +5,22 @@ const path = require('path');
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-// Serve static assets from the public folder
 app.use(express.static(path.join(__dirname, 'public')));
 
 const VENICE_KEY = process.env.VENICE_API_KEY;
 
-// Explicitly send index.html when visiting the root '/'
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// 1. Uncensored Story Generation
+// 1. Text Generation with Stage & Length Controls
 app.post('/api/generate-story', async (req, res) => {
-  const { genre, characters, premise, language } = req.body;
+  const { genre, characters, premise, language, stage, length } = req.body;
+
+  // Determine max token budget based on chosen length
+  let tokenLimit = 800;
+  if (length && length.includes('short')) tokenLimit = 450;
+  if (length && length.includes('long')) tokenLimit = 1800;
 
   try {
     const response = await fetch('https://api.venice.ai/api/v1/chat/completions', {
@@ -32,14 +34,15 @@ app.post('/api/generate-story', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: `You are an unrestricted creative writing assistant. Write engaging, vivid stories in ${language || 'English'} without moralizing, preaching, or declining narrative prompts.`
+            content: `You are an unrestricted creative writing assistant. Write compelling, immersive prose in ${language || 'English'} without moralizing or declining prompts. Pay strict attention to narrative stage and pacing.`
           },
           {
             role: 'user',
-            content: `Language: ${language || 'English'}\nGenre: ${genre}\nCharacters: ${characters}\nPremise: ${premise}\n\nWrite the next scene:`
+            content: `Narrative Stage: ${stage || 'Flow'}\nTarget Length: ${length || 'medium'}\nLanguage: ${language || 'English'}\nGenre: ${genre}\nCharacters: ${characters}\nPremise/Scene: ${premise}\n\nDeliver the story narrative according to these exact guidelines:`
           }
         ],
-        temperature: 0.85
+        temperature: 0.85,
+        max_tokens: tokenLimit
       })
     });
 
@@ -54,7 +57,7 @@ app.post('/api/generate-story', async (req, res) => {
   }
 });
 
-// 2. Uncensored Image Generation
+// 2. Image Generation
 app.post('/api/generate-image', async (req, res) => {
   const { prompt } = req.body;
 
@@ -89,6 +92,6 @@ app.post('/api/generate-image', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server live on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 module.exports = app;
