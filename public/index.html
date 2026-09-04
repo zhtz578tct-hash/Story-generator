@@ -189,15 +189,16 @@
         const keyRes = await fetch('/api/config');
         const { key } = await keyRes.json();
 
-        // Venice strict minimal parameters for SDXL
+                // Venice strict minimal parameters for SDXL
         const payload = {
           model: 'lustify-sdxl',
           prompt: `${prompt}, ${style}`
         };
 
-        // Attach image data if provided
+        // Attach image data if provided (SD img2img parameters)
         if (uploadedImageBase64) {
-          payload.image = uploadedImageBase64;
+          payload.init_image = uploadedImageBase64;
+          payload.strength = 0.65; // 0.1 preserves original, 0.9 makes radical changes
         }
 
         status.innerText = "Generating image (takes ~15-20s)...";
