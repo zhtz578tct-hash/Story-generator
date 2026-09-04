@@ -12,14 +12,14 @@
     label { display: block; font-size: 0.82rem; font-weight: 600; margin-top: 12px; margin-bottom: 5px; color: #cbd5e1; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     select, input, textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #1e293b; background: #161e2e; color: #fff; font-size: 0.95rem; }
-    textarea { height: 100px; resize: vertical; }
-    .btn-row { display: flex; gap: 10px; margin-top: 16px; }
-    button { flex: 1; padding: 14px; border: none; border-radius: 8px; font-weight: 600; font-size: 0.95rem; cursor: pointer; }
+    textarea { height: 90px; resize: vertical; }
+    button { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: 600; font-size: 0.95rem; cursor: pointer; margin-top: 10px; }
     .btn-story { background: #2563eb; color: #fff; }
     .btn-image { background: #7c3aed; color: #fff; }
     button:disabled { opacity: 0.6; }
-    #storyBox { margin-top: 20px; padding: 16px; background: #161e2e; border: 1px solid #1e293b; border-radius: 8px; line-height: 1.7; white-space: pre-wrap; font-size: 1rem; display: none; }
-    #imageBox { margin-top: 20px; text-align: center; display: none; }
+    .divider { margin: 24px 0 16px; border-top: 1px solid #1e293b; }
+    #storyBox { margin-top: 16px; padding: 16px; background: #161e2e; border: 1px solid #1e293b; border-radius: 8px; line-height: 1.7; white-space: pre-wrap; font-size: 1rem; display: none; }
+    #imageBox { margin-top: 16px; text-align: center; display: none; }
     #imageBox img { max-width: 100%; border-radius: 8px; border: 1px solid #334155; }
   </style>
 </head>
@@ -27,6 +27,7 @@
   <h1>Story Studio</h1>
   <p class="sub">Uncensored narrative and scene generation</p>
 
+  <!-- STORY SECTION -->
   <label>Language</label>
   <select id="language">
     <option value="English">English</option>
@@ -38,19 +39,19 @@
     <div>
       <label>Story Stage</label>
       <select id="stage">
-        <option value="Opening / Hook">Story Opening (Hook)</option>
-        <option value="Middle / Plot Development">Story Flow (Development)</option>
+        <option value="Opening / Hook">Opening (Hook)</option>
+        <option value="Middle / Plot Development">Story Flow</option>
         <option value="Climax">Dramatic Climax</option>
-        <option value="Ending / Resolution">Story Ending (Resolution)</option>
-        <option value="Complete Short Story">Full Standalone Story</option>
+        <option value="Ending / Resolution">Resolution</option>
+        <option value="Complete Short Story">Full Story</option>
       </select>
     </div>
     <div>
-      <label>Story Length</label>
+      <label>Length</label>
       <select id="length">
-        <option value="short (around 200 words)">Short (~200 words)</option>
-        <option value="medium (around 500 words)" selected>Medium (~500 words)</option>
-        <option value="long and detailed (around 900+ words)">Long (~900+ words)</option>
+        <option value="short (around 200 words)">Short (~200w)</option>
+        <option value="medium (around 500 words)" selected>Medium (~500w)</option>
+        <option value="long and detailed (around 900+ words)">Long (~900w+)</option>
       </select>
     </div>
   </div>
@@ -62,15 +63,29 @@
   <input id="characters" placeholder="e.g. Ramesh, Priya" />
 
   <label>Premise / Scene Focus</label>
-  <textarea id="premise" placeholder="What is happening right now? Describe the situation..."></textarea>
+  <textarea id="premise" placeholder="What happens in this story scene?"></textarea>
 
-  <div class="btn-row">
-    <button class="btn-story" id="storyBtn" onclick="runStory()">Write Scene</button>
-    <button class="btn-image" id="imgBtn" onclick="runImage()">Illustrate</button>
-  </div>
+  <button class="btn-story" id="storyBtn" onclick="runStory()">Write Story Scene</button>
+  <div id="storyBox"></div>
+
+  <div class="divider"></div>
+
+  <!-- IMAGE GENERATION SECTION -->
+  <label>Visual Style</label>
+  <select id="imageStyle">
+    <option value="Cinematic, dramatic lighting, 8k resolution, photorealistic">Cinematic / Realism</option>
+    <option value="Dark Fantasy, atmospheric, moody, intricate details">Dark Fantasy</option>
+    <option value="Anime style, highly detailed digital illustration">Anime / Graphic</option>
+    <option value="Classic oil painting, artistic texture, masterpiece">Oil Painting</option>
+    <option value="Vintage 90s film photograph, grainy, realistic">Vintage Film</option>
+  </select>
+
+  <label>Image Prompt</label>
+  <textarea id="imgPrompt" placeholder="Describe the image in detail (characters, clothing, environment, lighting)..."></textarea>
+
+  <button class="btn-image" id="imgBtn" onclick="runImage()">Generate Picture</button>
 
   <div id="imageBox"><img id="sceneImg" /></div>
-  <div id="storyBox"></div>
 
   <script>
     async function runStory() {
@@ -98,7 +113,7 @@
       } catch (e) {
         alert("Server request failed");
       }
-      btn.innerText = "Write Scene";
+      btn.innerText = "Write Story Scene";
       btn.disabled = false;
     }
 
@@ -106,10 +121,11 @@
       const btn = document.getElementById('imgBtn');
       const box = document.getElementById('imageBox');
       const img = document.getElementById('sceneImg');
-      const premise = document.getElementById('premise').value;
+      const prompt = document.getElementById('imgPrompt').value;
+      const style = document.getElementById('imageStyle').value;
 
-      if (!premise.trim()) {
-        alert("Enter scene details first.");
+      if (!prompt.trim()) {
+        alert("Please enter a description in the Image Prompt box.");
         return;
       }
 
@@ -117,10 +133,11 @@
       btn.disabled = true;
 
       try {
+        const fullPrompt = `${prompt}, ${style}`;
         const res = await fetch('/api/generate-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: premise })
+          body: JSON.stringify({ prompt: fullPrompt })
         });
         const data = await res.json();
         if (data.imageUrl) {
@@ -132,7 +149,7 @@
       } catch (e) {
         alert("Image failed");
       }
-      btn.innerText = "Illustrate";
+      btn.innerText = "Generate Picture";
       btn.disabled = false;
     }
   </script>
